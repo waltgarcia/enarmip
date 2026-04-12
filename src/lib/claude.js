@@ -79,6 +79,30 @@ export async function generateClinicalCases({ systemPrompt, userMessage }) {
 }
 
 /**
+ * Call Claude and return a plain-text micro-lesson for a flashcard.
+ *
+ * @param {{ question: string, correctAnswer: string, wrongAnswer: string|null, lang: string }} params
+ * @returns {Promise<string>} Plain-text pedagogical explanation
+ */
+export async function generateMicroLesson({ question, correctAnswer, wrongAnswer, lang = 'ES' }) {
+  const systemPrompt =
+    `You are a senior ENARM tutor. Given a clinical question, the correct answer, ` +
+    `and the student's wrong answer, write a 3-4 sentence clinical pearl explaining:\n` +
+    `1. WHY the wrong answer is incorrect (briefly)\n` +
+    `2. WHY the correct answer is right (with clinical mechanism)\n` +
+    `3. A memorable mnemonic or analogy if possible\n` +
+    `Be concise, pedagogical, and use Mexican clinical context.\n` +
+    `Respond in ${lang === 'ES' ? 'Spanish' : 'English'}. Return plain text only, no JSON.`
+
+  const userMessage =
+    `Question: ${question}\n` +
+    `Correct answer: ${correctAnswer}\n` +
+    (wrongAnswer ? `Student's wrong answer: ${wrongAnswer}\n` : '')
+
+  return _callClaudeRaw({ systemPrompt, userMessage })
+}
+
+/**
  * Call Claude and parse the response as a JSON object (thematic study session).
  *
  * @param {{ systemPrompt: string, userMessage: string }} params
