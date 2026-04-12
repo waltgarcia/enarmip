@@ -50,6 +50,7 @@ create table if not exists guidelines (
   file_path text,
   uploaded_by uuid references profiles(id),
   is_public boolean default true,
+  source text default 'community' check (source in ('gpc_pdf', 'community')),
   created_at timestamptz default now()
 );
 
