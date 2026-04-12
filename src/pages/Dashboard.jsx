@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import AppLayout from '../components/layout/AppLayout'
 import { useLang } from '../context/LangContext'
 import { useAuth } from '../context/AuthContext'
-import { BookOpen, Zap, Target, Trophy } from 'lucide-react'
+import { BookOpen, Zap, Target, Trophy, AlertTriangle } from 'lucide-react'
 
 const stats = [
   { icon: BookOpen, label: { ES: 'Casos Estudiados', EN: 'Cases Studied' }, value: '0', color: 'text-accent-blue', bg: 'bg-accent-blue/10' },
@@ -13,9 +15,24 @@ const stats = [
 export default function Dashboard() {
   const { t, lang } = useLang()
   const { profile } = useAuth()
+  const location = useLocation()
+  const [flashError, setFlashError] = useState(location.state?.flashError ?? null)
+
+  useEffect(() => {
+    if (flashError) {
+      const timer = setTimeout(() => setFlashError(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [flashError])
 
   return (
     <AppLayout title={t('dashboard')}>
+      {flashError && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-error/10 border border-error/30 text-error text-sm font-medium px-4 py-3 rounded-xl shadow-lg">
+          <AlertTriangle size={16} />
+          {flashError}
+        </div>
+      )}
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h2 className="font-heading font-bold text-2xl text-white">
