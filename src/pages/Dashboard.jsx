@@ -19,7 +19,7 @@ export default function Dashboard() {
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h2 className="font-heading font-bold text-2xl text-white">
-            {lang === 'ES' ? 'Bienvenido' : 'Welcome'}{profile?.name ? `, ${profile.name.split(' ')[0]}` : ''}! 👋
+            {lang === 'ES' ? 'Bienvenido' : 'Welcome'}{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}! 👋
           </h2>
           <p className="text-gray-400 mt-1">
             {lang === 'ES' ? 'Continúa tu preparación para el ENARM.' : 'Continue your ENARM preparation.'}

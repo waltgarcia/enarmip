@@ -23,7 +23,7 @@ export default function Signup() {
       email: form.email,
       password: form.password,
       options: {
-        data: { name: form.name, institution: form.institution },
+        data: { full_name: form.name, institution: form.institution },
       },
     })
     if (error) {
@@ -32,9 +32,8 @@ export default function Signup() {
       if (data.user) {
         await supabase.from('profiles').upsert({
           id: data.user.id,
-          name: form.name,
+          full_name: form.name,
           institution: form.institution,
-          email: form.email,
           role: 'student',
         })
       }

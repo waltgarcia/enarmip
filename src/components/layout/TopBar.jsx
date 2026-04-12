@@ -8,7 +8,7 @@ export default function TopBar({ title }) {
   const { lang, toggleLang } = useLang()
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const avatarLabel = profile?.name?.[0] || user?.email?.[0] || 'U'
+  const avatarLabel = profile?.full_name?.[0] || user?.email?.[0] || 'U'
 
   return (
     <header className="fixed top-0 left-0 md:left-60 right-0 z-20 h-16 bg-surface/80 backdrop-blur border-b border-gray-800 flex items-center justify-between px-4 md:px-6">
@@ -40,7 +40,7 @@ export default function TopBar({ title }) {
           {menuOpen && (
             <div className="absolute right-0 mt-2 w-52 bg-surface border border-gray-700 rounded-xl shadow-xl py-1 z-50">
               <div className="px-4 py-3 border-b border-gray-700">
-                <p className="text-sm font-medium text-white truncate">{profile?.name || 'User'}</p>
+                <p className="text-sm font-medium text-white truncate">{profile?.full_name || 'User'}</p>
                 <p className="text-xs text-gray-400 truncate">{user?.email}</p>
               </div>
               <button
