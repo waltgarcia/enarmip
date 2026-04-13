@@ -6,11 +6,12 @@ import AppLayout from '../components/layout/AppLayout'
 import { useLang } from '../context/LangContext'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { useDebounce } from '../hooks/useDebounce'
 import {
-  Settings, Check, X, Edit2, ChevronDown, ChevronUp,
+  Check, X, Edit2, ChevronDown, ChevronUp,
   Loader2, AlertTriangle, Search, Filter, Trash2, Eye,
   ShieldCheck, Users, BookOpen, AlertCircle, RefreshCw,
-  CheckSquare, Square, MoreHorizontal,
+  CheckSquare, Square, MoreHorizontal, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -272,7 +273,6 @@ function PendingCard({ q, selected, onSelect, onApprove, onReject, onEdit }) {
 export default function Admin() {
   const { lang } = useLang()
   const { profile } = useAuth()
-  const navigate = useNavigate()
 
   // ── State ────────────────────────────────────────────────────────────────
   const [tab, setTab]                     = useState('pending')  // 'pending' | 'approved' | 'users'
@@ -288,7 +288,8 @@ export default function Admin() {
   const [actionLoading, setActionLoading] = useState(false)
 
   // Approved bank
-  const [searchQ, setSearchQ]             = useState('')
+  const [searchRaw, setSearchRaw]         = useState('')
+  const searchQ                           = useDebounce(searchRaw, 300)
   const [sortCol, setSortCol]             = useState('id')
   const [sortDir, setSortDir]             = useState('desc')
   const [filterSpec, setFilterSpec]       = useState('')
@@ -296,6 +297,8 @@ export default function Admin() {
   const [filterDiff, setFilterDiff]       = useState('')
   const [filterSrc,  setFilterSrc]        = useState('')
   const [viewTarget, setViewTarget]       = useState(null)
+  const [page, setPage]                   = useState(1)
+  const PAGE_SIZE                         = 20
 
   // User management
   const [roleUpdating, setRoleUpdating]   = useState(null)
@@ -409,7 +412,7 @@ export default function Admin() {
 
   // ── Stats ─────────────────────────────────────────────────────────────────
 
-  const allQuestions = [...pending, ...approved]
+  const allQuestions = useMemo(() => [...pending, ...approved], [pending, approved])
   const bySpecialty  = useMemo(() => {
     const map = {}
     allQuestions.forEach(q => {
@@ -419,8 +422,11 @@ export default function Admin() {
       name: name.length > 12 ? name.slice(0, 11) + '…' : name,
       count,
     })).sort((a, b) => b.count - a.count)
-  }, [pending, approved]) // eslint-disable-line react-hooks/exhaustive-deps
-  const conflictCount = allQuestions.filter(q => q.conflict_note).length
+  }, [allQuestions])
+  const conflictCount = useMemo(
+    () => allQuestions.filter(q => q.conflict_note).length,
+    [allQuestions],
+  )
 
   // ── Filtered + sorted approved bank ───────────────────────────────────────
 
@@ -441,6 +447,12 @@ export default function Admin() {
     })
     return rows
   }, [approved, searchQ, filterSpec, filterArea, filterDiff, filterSrc, sortCol, sortDir])
+
+  // Reset to page 1 whenever filters / sort change
+  useEffect(() => { setPage(1) }, [searchQ, filterSpec, filterArea, filterDiff, filterSrc, sortCol, sortDir])
+
+  const totalPages   = Math.max(1, Math.ceil(filteredApproved.length / PAGE_SIZE))
+  const pagedApproved = filteredApproved.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const approvedSpecialties = useMemo(() => [...new Set(approved.map(q => q.specialty).filter(Boolean))].sort(), [approved])
   const approvedAreas       = useMemo(() => [...new Set(approved.map(q => q.area_enarm).filter(Boolean))].sort(), [approved])
@@ -629,8 +641,8 @@ export default function Admin() {
                 <input
                   className="bg-surface border border-gray-700 rounded-xl text-sm text-gray-300 pl-8 pr-3 py-2 w-56 focus:outline-none focus:border-accent-blue"
                   placeholder={lang === 'ES' ? 'Buscar...' : 'Search...'}
-                  value={searchQ}
-                  onChange={e => setSearchQ(e.target.value)}
+                  value={searchRaw}
+                  onChange={e => setSearchRaw(e.target.value)}
                 />
               </div>
               <Filter size={14} className="text-gray-500" />
@@ -650,10 +662,10 @@ export default function Admin() {
                 <option value="">{lang === 'ES' ? 'Tipo fuente' : 'Source type'}</option>
                 {SOURCE_TYPES.filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              {(searchQ || filterSpec || filterArea || filterDiff || filterSrc) && (
+              {(searchRaw || filterSpec || filterArea || filterDiff || filterSrc) && (
                 <button
                   className="text-xs text-gray-500 hover:text-error"
-                  onClick={() => { setSearchQ(''); setFilterSpec(''); setFilterArea(''); setFilterDiff(''); setFilterSrc('') }}
+                  onClick={() => { setSearchRaw(''); setFilterSpec(''); setFilterArea(''); setFilterDiff(''); setFilterSrc('') }}
                 >
                   {lang === 'ES' ? 'Limpiar' : 'Clear'}
                 </button>
@@ -695,7 +707,7 @@ export default function Admin() {
                         </td>
                       </tr>
                     ) : (
-                      filteredApproved.map(q => (
+                      pagedApproved.map(q => (
                         <tr key={q.id} className="border-b border-gray-800/50 hover:bg-white/[0.02] transition-colors">
                           <td className="px-4 py-3 text-gray-500 font-mono">{q.id}</td>
                           <td className="px-4 py-3 text-gray-300 max-w-xs truncate">{q.vignette || q.question || '—'}</td>
@@ -743,6 +755,57 @@ export default function Admin() {
                 </table>
               </div>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
+                <span className="text-xs text-gray-500">
+                  {lang === 'ES'
+                    ? `Página ${page} de ${totalPages} · ${filteredApproved.length} preguntas`
+                    : `Page ${page} of ${totalPages} · ${filteredApproved.length} questions`}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="p-1.5 text-gray-500 hover:text-white disabled:opacity-30 transition-colors rounded-lg hover:bg-white/5"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…')
+                      acc.push(p)
+                      return acc
+                    }, [])
+                    .map((p, i) =>
+                      p === '…'
+                        ? <span key={`ellipsis-${i}`} className="px-1 text-gray-600 text-xs">…</span>
+                        : (
+                          <button
+                            key={p}
+                            onClick={() => setPage(p)}
+                            className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${
+                              page === p
+                                ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
+                                : 'text-gray-500 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                    )}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="p-1.5 text-gray-500 hover:text-white disabled:opacity-30 transition-colors rounded-lg hover:bg-white/5"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

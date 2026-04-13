@@ -219,6 +219,11 @@ export default function Exam() {
     // but timeLeft isn't reset, so the countdown continues from where it was.
   }, [currentIdx, phase, timerMode, mode])
 
+  const handleOpenSummary = useCallback(() => {
+    clearInterval(timerRef.current)
+    setSummaryOpen(true)
+  }, [])
+
   const handleTimerExpire = useCallback(() => {
     if (timerMode === 'total' && mode !== 'simulacro') {
       // Total time ran out: auto-submit
@@ -242,12 +247,11 @@ export default function Exam() {
       setTimeout(() => handleOpenSummary(), 100)
       return prev
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIdx, questions, timerMode, mode])
+  }, [currentIdx, questions, timerMode, mode, handleOpenSummary])
 
   // ── ANSWER HANDLER ────────────────────────────────────────────────────────────
 
-  const handleSelectAnswer = (optIdx) => {
+  const handleSelectAnswer = useCallback((optIdx) => {
     const q = questions[currentIdx]
     if (!q) return
     if (answers[q.id] && mode === 'simulacro') return // simulacro: can change answer
@@ -262,16 +266,16 @@ export default function Exam() {
     if (mode === 'standard') {
       setShowFeedback(true)
     }
-  }
+  }, [questions, currentIdx, answers, mode])
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     setShowFeedback(false)
     if (currentIdx < questions.length - 1) {
       setCurrentIdx(prev => prev + 1)
     } else {
       handleOpenSummary()
     }
-  }
+  }, [currentIdx, questions.length, handleOpenSummary])
 
   const handleJumpTo = (idx) => {
     if (mode === 'standard') setShowFeedback(false)
@@ -289,12 +293,26 @@ export default function Exam() {
     })
   }
 
-  // ── SUMMARY & SUBMIT ──────────────────────────────────────────────────────────
+  // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
+  // 1-5: select option, Enter/N: next question (in exam phase)
+  useEffect(() => {
+    if (phase !== 'exam') return
+    const handleKey = (e) => {
+      // Ignore when focus is inside a text input
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return
 
-  const handleOpenSummary = () => {
-    clearInterval(timerRef.current)
-    setSummaryOpen(true)
-  }
+      const digit = parseInt(e.key, 10)
+      if (digit >= 1 && digit <= 5) {
+        handleSelectAnswer(digit - 1)
+      } else if (e.key === 'Enter' || e.key === 'n' || e.key === 'N') {
+        handleNext()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [phase, handleSelectAnswer, handleNext])
+
+  // ── SUMMARY & SUBMIT ──────────────────────────────────────────────────────────
 
   const answeredCount = Object.keys(answers).length
   const unansweredCount = questions.length - answeredCount
